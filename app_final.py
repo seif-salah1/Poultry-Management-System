@@ -12,11 +12,25 @@ custom_css = """
     html, body, [class*="st-"] {
         font-family: 'Calibri', sans-serif !important;
     }
-    /* تطبيق اتجاه اليمين لليسار على النصوص فقط وليس على هيكل التطبيق لمنع كسر شاشة الموبايل */
-    .block-container, .stMarkdown, p, h1, h2, h3, h4, h5, h6, label, .stDataFrame {
+    
+    .stApp, .stMarkdown, p, h1, h2, h3, h4, h5, h6, label, .stDataFrame {
         direction: rtl;
-        text-align: right;
+        text-align: right !important;
     }
+    
+    
+    section[data-testid="stSidebar"] {
+        direction: rtl;
+    }
+     
+    section[data-testid="stSidebar"] p,
+    section[data-testid="stSidebar"] label,
+    section[data-testid="stSidebar"] span {
+        white-space: nowrap !important;
+        overflow: hidden !important; 
+        text-overflow: ellipsis !important;
+    }
+    
     .stApp h1 {
         font-size: 26px !important;
         padding-bottom: 5px !important;
@@ -27,10 +41,6 @@ custom_css = """
     }
     .dataframe {
         font-size: 14px;
-    }
-    /* منع الحروف من النزول عمودياً عند غلق القائمة في الموبايل */
-    [data-testid="stSidebar"] * {
-        white-space: normal !important;
     }
 </style>
 """
