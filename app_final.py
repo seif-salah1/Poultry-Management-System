@@ -12,12 +12,10 @@ custom_css = """
     html, body, [class*="st-"] {
         font-family: 'Calibri', sans-serif !important;
     }
-    .stApp, .stMarkdown, p, h1, h2, h3, h4, h5, h6, label, .stDataFrame {
+    /* تطبيق اتجاه اليمين لليسار على النصوص فقط وليس على هيكل التطبيق لمنع كسر شاشة الموبايل */
+    .block-container, .stMarkdown, p, h1, h2, h3, h4, h5, h6, label, .stDataFrame {
         direction: rtl;
         text-align: right;
-    }
-    section[data-testid="stSidebar"] {
-        direction: rtl;
     }
     .stApp h1 {
         font-size: 26px !important;
@@ -30,13 +28,13 @@ custom_css = """
     .dataframe {
         font-size: 14px;
     }
+    /* منع الحروف من النزول عمودياً عند غلق القائمة في الموبايل */
+    [data-testid="stSidebar"] * {
+        white-space: normal !important;
+    }
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
-
-st.sidebar.title("Kholoud Management System")
-st.sidebar.markdown("**النظام الذكي لإدارة الإنتاج الداجني**")
-st.sidebar.markdown("---") 
 
 breed_data = {
     "Ross 308 (روس)": {"max_weight": 2250, "fcr": 1.45, "max_feed": 165},
