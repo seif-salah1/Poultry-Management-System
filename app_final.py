@@ -18,11 +18,10 @@ custom_css = """
         text-align: right !important;
     }
     
-    
     section[data-testid="stSidebar"] {
         direction: rtl;
     }
-     
+    
     section[data-testid="stSidebar"] p,
     section[data-testid="stSidebar"] label,
     section[data-testid="stSidebar"] span {
@@ -45,6 +44,10 @@ custom_css = """
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
+
+st.sidebar.title("Kholoud Management System")
+st.sidebar.markdown("**النظام الذكي لإدارة الإنتاج الداجني**")
+st.sidebar.markdown("---") 
 
 breed_data = {
     "Ross 308 (روس)": {"max_weight": 2250, "fcr": 1.45, "max_feed": 165},
@@ -224,27 +227,18 @@ elif app_mode == "التحليل المناخي":
 
 elif app_mode == "تركيب العلف الاقتصادي":
     st.title("المحسن الذكي لتركيبات العلف الاقتصادي")
-    st.markdown("يقوم هذا النظام بحساب التوليفة الأقل تكلفة لعمل طن علف مع الالتزام بالقيود الفسيولوجية والغذائية للطائر، لضمان أعلى جودة بأرخص سعر ممكن في السوق.")
+    st.markdown("يقوم هذا النظام بحساب التوليفة الأقل تكلفة لعمل طن علف مع الالتزام بالقيود الفسيولوجية والأحماض الأمينية للطائر، لضمان أعلى جودة بأرخص سعر متاح.")
     
-    st.subheader("ملاحظة: الدليل القياسي للاحتياجات الغذائية حسب العمر")
-    st.markdown("يجب أن تتطابق تركيبة العلف مع هذه الأرقام لضمان عدم حدوث مشاكل فسيولوجية للقطيع (تأخر نمو أو كساح).")
-    req_df = pd.DataFrame({
-        "المرحلة العمرية": ["بادي (Starter) 1-14 يوم", "نامي (Grower) 15-28 يوم", "ناهي (Finisher) 29-35 يوم"],
-        "البروتين الخام (CP %)": ["23%", "21%", "19%"],
-        "الطاقة (Kcal/Kg)": ["3000", "3100", "3200"],
-        "الكالسيوم (%)": ["1.0%", "0.9%", "0.85%"]
-    })
-    st.dataframe(req_df, use_container_width=True, hide_index=True)
-    
-    st.markdown("---")
     st.subheader("الخطوة 1: إدخال أسعار الخامات اليوم (للطن بالجنيه)")
     col1, col2, col3 = st.columns(3)
     with col1:
         price_corn = st.number_input("سعر طن الذرة الصفراء", value=12000, step=500)
         price_soy = st.number_input("سعر طن كسب الصويا 48%", value=24000, step=500)
+        price_lysine = st.number_input("سعر طن الليزين (Lysine HCl)", value=85000, step=1000)
     with col2:
         price_oil = st.number_input("سعر طن زيت الصويا", value=45000, step=1000)
         price_limestone = st.number_input("سعر طن الحجر الجيري", value=1500, step=100)
+        price_methionine = st.number_input("سعر طن الميثيونين (DL-Met)", value=130000, step=1000)
     with col3:
         price_dcp = st.number_input("سعر طن الداي كالسيوم", value=18000, step=500)
         
@@ -252,22 +246,30 @@ elif app_mode == "تركيب العلف الاقتصادي":
     stage = st.selectbox("المرحلة العمرية:", ["بادي (Starter)", "نامي (Grower)", "ناهي (Finisher)"])
     
     if st.button("تشغيل النظام لحساب التركيبة المثالية"):
+        # إعداد المتطلبات الغذائية والحدود القصوى بناءً على المرحلة
         if stage == "بادي (Starter)":
             target_cp = 23.0 ; target_me = 3000 ; target_ca = 1.0 ; target_p = 0.45
+            bounds = [(0, 600), (0, 400), (0, 50), (0, 15), (0, 20), (0.5, 5), (0.5, 4)]
         elif stage == "نامي (Grower)":
             target_cp = 21.0 ; target_me = 3100 ; target_ca = 0.9 ; target_p = 0.40
-        else:
+            bounds = [(0, 650), (0, 380), (0, 50), (0, 15), (0, 20), (0.5, 4), (0.5, 4)]
+        else: # Finisher
             target_cp = 19.0 ; target_me = 3200 ; target_ca = 0.85 ; target_p = 0.35
+            bounds = [(0, 680), (0, 320), (0, 60), (0, 15), (0, 18), (0.5, 4), (0.5, 3.5)]
 
-        c = [price_corn/1000, price_soy/1000, price_oil/1000, price_limestone/1000, price_dcp/1000]
-        A_eq = [[1, 1, 1, 1, 1]]
+        # ترتيب المتغيرات: ذرة، صويا، زيت، حجر جيري، داي كالسيوم، ليزين، ميثيونين
+        c = [price_corn/1000, price_soy/1000, price_oil/1000, price_limestone/1000, price_dcp/1000, price_lysine/1000, price_methionine/1000]
+        
+        # معادلة ثبات الوزن (990 كجم ليتبقى 10 كجم للإضافات الثابتة)
+        A_eq = [[1, 1, 1, 1, 1, 1, 1]]
         b_eq = [990]
         
+        # مصفوفة القيود الغذائية (A_ub * x <= b_ub) مضروبة في -1 لتحقيق (>=)
         A_ub = [
-            [-0.085, -0.48, 0, 0, 0],
-            [-3350, -2230, -8800, 0, 0],
-            [-0.0002, -0.002, 0, -0.38, -0.22],
-            [-0.001, -0.002, 0, 0, -0.18]
+            [-0.085, -0.48, 0, 0, 0, -0.94, -0.58], # CP (البروتين الخام بمشاركة تقريبية للأحماض)
+            [-3350, -2230, -8800, 0, 0, -4000, -5000], # ME (الطاقة)
+            [-0.0002, -0.002, 0, -0.38, -0.22, 0, 0], # Ca (الكالسيوم)
+            [-0.001, -0.002, 0, 0, -0.18, 0, 0] # P (الفسفور)
         ]
         b_ub = [
             -(target_cp / 100) * 1000,
@@ -276,29 +278,27 @@ elif app_mode == "تركيب العلف الاقتصادي":
             -(target_p / 100) * 1000
         ]
         
-        bounds = [
-            (0, 800),  
-            (0, 500),  
-            (0, 80),   
-            (0, 100),  
-            (0, 100)   
-        ]
-        
         res = linprog(c, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method='highs')
         
         if res.success:
             st.success("تمت العملية بنجاح. تم استخراج التركيبة الأقل تكلفة.")
-            corn_kg, soy_kg, oil_kg, lime_kg, dcp_kg = res.x
+            corn_kg, soy_kg, oil_kg, lime_kg, dcp_kg, lys_kg, met_kg = res.x
             total_ton_cost = res.fun * 1000
             
             st.markdown(f"### تكلفة طن العلف النهائي: {total_ton_cost:,.2f} جنيه مصري")
             
             result_df = pd.DataFrame({
-                "المكونات (لعمل 1000 كجم)": ["ذرة صفراء", "كسب صويا 48%", "زيت صويا", "حجر جيري", "داي كالسيوم فوسفات", "ثوابت وإضافات"],
-                "الكمية بالوزن (كجم)": [f"{corn_kg:.2f}", f"{soy_kg:.2f}", f"{oil_kg:.2f}", f"{lime_kg:.2f}", f"{dcp_kg:.2f}", "10.00"]
+                "المكونات (لعمل 1000 كجم)": [
+                    "ذرة صفراء", "كسب صويا 48%", "زيت صويا", "حجر جيري", 
+                    "داي كالسيوم فوسفات", "ليزين (Lysine HCl)", "ميثيونين (DL-Met)", "ثوابت وإضافات"
+                ],
+                "الكمية بالوزن (كجم)": [
+                    f"{corn_kg:.2f}", f"{soy_kg:.2f}", f"{oil_kg:.2f}", f"{lime_kg:.2f}", 
+                    f"{dcp_kg:.2f}", f"{lys_kg:.2f}", f"{met_kg:.2f}", "10.00"
+                ]
             })
             st.dataframe(result_df, use_container_width=True, hide_index=True)
-            st.info("ملاحظة هندسية: هذه التركيبة تم حسابها آلياً لتحقيق المتطلبات القياسية بأقل سعر متاح مع احترام الحدود القصوى المسموحة للخامات.")
+            st.info("ملاحظة هندسية: تم الالتزام بالحدود القصوى (الفسيولوجية) للخامات وللأحماض الأمينية الصناعية كما حددها خبير التغذية لضمان كفاءة التحويل.")
         else:
             st.error("لم يتمكن النظام من إيجاد تركيبة متوافقة مع هذه القيود والأسعار. يرجى مراجعة المدخلات.")
 
