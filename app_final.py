@@ -24,15 +24,19 @@ custom_css = """
         text-align: right !important;
     }
     
+    /* 1. تكبير عرض القائمة الجانبية لتستوعب الكلام على سطر واحد */
     section[data-testid="stSidebar"] {
         direction: rtl;
+        min-width: 380px !important;
+        max-width: 380px !important;
     }
     
-    /* السماح للكلمات بالالتفاف الطبيعي عشان مفيش كلام يختفي */
+    /* 2. إجبار الكلمات على البقاء في سطر واحد بدون التفاف */
     section[data-testid="stSidebar"] p,
     section[data-testid="stSidebar"] label,
-    section[data-testid="stSidebar"] span {
-        white-space: normal !important;
+    section[data-testid="stSidebar"] span,
+    section[data-testid="stSidebar"] h1 {
+        white-space: nowrap !important;
     }
     
     .stApp h1 {
@@ -40,9 +44,9 @@ custom_css = """
         padding-bottom: 5px !important;
     }
     
-    /* تصغير خط عنوان القائمة الجانبية لضمان التناسق وعدم التكدس */
+    /* 3. إرجاع حجم الخط الكبير والشيك للعنوان */
     section[data-testid="stSidebar"] h1 {
-        font-size: 18px !important;
+        font-size: 24px !important;
         padding-top: 0px !important;
     }
     
