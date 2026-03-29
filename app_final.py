@@ -5,6 +5,12 @@ import requests
 from scipy.optimize import linprog
 from datetime import datetime, timedelta
 
+# محاولة استدعاء مكتبة التفقيط (كتابة الأرقام بالعربية)
+try:
+    from num2words import num2words
+except ImportError:
+    pass
+
 st.set_page_config(page_title="Kholoud Management System", layout="wide")
 
 custom_css = """
@@ -22,22 +28,24 @@ custom_css = """
         direction: rtl;
     }
     
+    /* السماح للكلمات بالالتفاف الطبيعي عشان مفيش كلام يختفي */
     section[data-testid="stSidebar"] p,
     section[data-testid="stSidebar"] label,
     section[data-testid="stSidebar"] span {
-        white-space: nowrap !important;
-        overflow: hidden !important; 
-        text-overflow: ellipsis !important;
+        white-space: normal !important;
     }
     
     .stApp h1 {
         font-size: 26px !important;
         padding-bottom: 5px !important;
     }
+    
+    /* تصغير خط عنوان القائمة الجانبية لضمان التناسق وعدم التكدس */
     section[data-testid="stSidebar"] h1 {
-        font-size: 20px !important;
+        font-size: 18px !important;
         padding-top: 0px !important;
     }
+    
     .dataframe {
         font-size: 14px;
     }
@@ -246,7 +254,6 @@ elif app_mode == "تركيب العلف الاقتصادي":
     stage = st.selectbox("المرحلة العمرية:", ["بادي (Starter)", "نامي (Grower)", "ناهي (Finisher)"])
     
     if st.button("تشغيل النظام لحساب التركيبة المثالية"):
-        # إعداد المتطلبات الغذائية والحدود القصوى بناءً على المرحلة
         if stage == "بادي (Starter)":
             target_cp = 23.0 ; target_me = 3000 ; target_ca = 1.0 ; target_p = 0.45
             bounds = [(0, 600), (0, 400), (0, 50), (0, 15), (0, 20), (0.5, 5), (0.5, 4)]
@@ -257,19 +264,15 @@ elif app_mode == "تركيب العلف الاقتصادي":
             target_cp = 19.0 ; target_me = 3200 ; target_ca = 0.85 ; target_p = 0.35
             bounds = [(0, 680), (0, 320), (0, 60), (0, 15), (0, 18), (0.5, 4), (0.5, 3.5)]
 
-        # ترتيب المتغيرات: ذرة، صويا، زيت، حجر جيري، داي كالسيوم، ليزين، ميثيونين
         c = [price_corn/1000, price_soy/1000, price_oil/1000, price_limestone/1000, price_dcp/1000, price_lysine/1000, price_methionine/1000]
-        
-        # معادلة ثبات الوزن (990 كجم ليتبقى 10 كجم للإضافات الثابتة)
         A_eq = [[1, 1, 1, 1, 1, 1, 1]]
         b_eq = [990]
         
-        # مصفوفة القيود الغذائية (A_ub * x <= b_ub) مضروبة في -1 لتحقيق (>=)
         A_ub = [
-            [-0.085, -0.48, 0, 0, 0, -0.94, -0.58], # CP (البروتين الخام بمشاركة تقريبية للأحماض)
-            [-3350, -2230, -8800, 0, 0, -4000, -5000], # ME (الطاقة)
-            [-0.0002, -0.002, 0, -0.38, -0.22, 0, 0], # Ca (الكالسيوم)
-            [-0.001, -0.002, 0, 0, -0.18, 0, 0] # P (الفسفور)
+            [-0.085, -0.48, 0, 0, 0, -0.94, -0.58], 
+            [-3350, -2230, -8800, 0, 0, -4000, -5000], 
+            [-0.0002, -0.002, 0, -0.38, -0.22, 0, 0], 
+            [-0.001, -0.002, 0, 0, -0.18, 0, 0] 
         ]
         b_ub = [
             -(target_cp / 100) * 1000,
@@ -283,14 +286,23 @@ elif app_mode == "تركيب العلف الاقتصادي":
         if res.success:
             st.success("تمت العملية بنجاح. تم استخراج التركيبة الأقل تكلفة.")
             corn_kg, soy_kg, oil_kg, lime_kg, dcp_kg, lys_kg, met_kg = res.x
-            total_ton_cost = res.fun * 1000
             
-            st.markdown(f"### تكلفة طن العلف النهائي: {total_ton_cost:,.2f} جنيه مصري")
+            # تصليح الخطأ الرياضي: إضافة 1500 جنيه تقديراً لأسعار الـ 10 كيلو إضافات ثابتة بدل الضرب الخاطئ في 1000
+            total_ton_cost = res.fun + 1500
+            
+            st.markdown(f"<h3 style='text-align: right;'>تكلفة طن العلف النهائي: <span style='color: #4CAF50;'>{total_ton_cost:,.2f}</span> جنيه مصري</h3>", unsafe_allow_html=True)
+            
+            try:
+                # توليد النص العربي آلياً
+                arabic_text = num2words(int(total_ton_cost), lang='ar')
+                st.markdown(f"<p style='text-align: right; color: #888; font-size: 18px;'>(فقط {arabic_text} جنيهاً مصرياً لا غير)</p>", unsafe_allow_html=True)
+            except:
+                pass
             
             result_df = pd.DataFrame({
                 "المكونات (لعمل 1000 كجم)": [
                     "ذرة صفراء", "كسب صويا 48%", "زيت صويا", "حجر جيري", 
-                    "داي كالسيوم فوسفات", "ليزين (Lysine HCl)", "ميثيونين (DL-Met)", "ثوابت وإضافات"
+                    "داي كالسيوم فوسفات", "ليزين (Lysine HCl)", "ميثيونين (DL-Met)", "ثوابت وإضافات (بريمكس وسموم)"
                 ],
                 "الكمية بالوزن (كجم)": [
                     f"{corn_kg:.2f}", f"{soy_kg:.2f}", f"{oil_kg:.2f}", f"{lime_kg:.2f}", 
@@ -298,7 +310,9 @@ elif app_mode == "تركيب العلف الاقتصادي":
                 ]
             })
             st.dataframe(result_df, use_container_width=True, hide_index=True)
-            st.info("ملاحظة هندسية: تم الالتزام بالحدود القصوى (الفسيولوجية) للخامات وللأحماض الأمينية الصناعية كما حددها خبير التغذية لضمان كفاءة التحويل.")
+            
+            # تم حذف الجملة المحددة بناءً على طلبك
+            st.info("ملاحظة هندسية: تم الالتزام بالحدود القصوى (الفسيولوجية) للخامات وللأحماض الأمينية الصناعية لضمان كفاءة التحويل.")
         else:
             st.error("لم يتمكن النظام من إيجاد تركيبة متوافقة مع هذه القيود والأسعار. يرجى مراجعة المدخلات.")
 
