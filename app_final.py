@@ -24,14 +24,14 @@ custom_css = """
         text-align: right !important;
     }
     
-    /* 1. تكبير عرض القائمة الجانبية لتستوعب الكلام على سطر واحد */
+    /* تكبير عرض القائمة الجانبية لتستوعب الكلام على سطر واحد */
     section[data-testid="stSidebar"] {
         direction: rtl;
         min-width: 380px !important;
         max-width: 380px !important;
     }
     
-    /* 2. إجبار الكلمات على البقاء في سطر واحد بدون التفاف */
+    /* إجبار الكلمات على البقاء في سطر واحد بدون التفاف */
     section[data-testid="stSidebar"] p,
     section[data-testid="stSidebar"] label,
     section[data-testid="stSidebar"] span,
@@ -44,7 +44,7 @@ custom_css = """
         padding-bottom: 5px !important;
     }
     
-    /* 3. إرجاع حجم الخط الكبير والشيك للعنوان */
+    /* إرجاع حجم الخط الكبير والشيك للعنوان */
     section[data-testid="stSidebar"] h1 {
         font-size: 24px !important;
         padding-top: 0px !important;
@@ -239,18 +239,18 @@ elif app_mode == "التحليل المناخي":
 
 elif app_mode == "تركيب العلف الاقتصادي":
     st.title("المحسن الذكي لتركيبات العلف الاقتصادي")
-    st.markdown("يقوم هذا النظام بحساب التوليفة الأقل تكلفة لعمل طن علف مع الالتزام بالقيود الفسيولوجية والأحماض الأمينية للطائر، لضمان أعلى جودة بأرخص سعر متاح.")
+    st.markdown("يقوم هذا النظام بحساب التوليفة الأقل تكلفة لعمل طن علف مع الالتزام بالقيود الفسيولوجية والتغذوية للأحماض الأمينية للطائر، لضمان أعلى جودة بأرخص سعر متاح.")
     
     st.subheader("الخطوة 1: إدخال أسعار الخامات اليوم (للطن بالجنيه)")
     col1, col2, col3 = st.columns(3)
     with col1:
         price_corn = st.number_input("سعر طن الذرة الصفراء", value=12000, step=500)
         price_soy = st.number_input("سعر طن كسب الصويا 48%", value=24000, step=500)
-        price_lysine = st.number_input("سعر طن الليزين (Lysine HCl)", value=85000, step=1000)
+        price_lysine = st.number_input("سعر طن الليزين (Lysine HCl 98%)", value=85000, step=1000)
     with col2:
         price_oil = st.number_input("سعر طن زيت الصويا", value=45000, step=1000)
         price_limestone = st.number_input("سعر طن الحجر الجيري", value=1500, step=100)
-        price_methionine = st.number_input("سعر طن الميثيونين (DL-Met)", value=130000, step=1000)
+        price_methionine = st.number_input("سعر طن الميثيونين (DL-Met 99%)", value=130000, step=1000)
     with col3:
         price_dcp = st.number_input("سعر طن الداي كالسيوم", value=18000, step=500)
         
@@ -258,46 +258,60 @@ elif app_mode == "تركيب العلف الاقتصادي":
     stage = st.selectbox("المرحلة العمرية:", ["بادي (Starter)", "نامي (Grower)", "ناهي (Finisher)"])
     
     if st.button("تشغيل النظام لحساب التركيبة المثالية"):
+        
+        # 1. إعداد المتطلبات القياسية بناءً على المرحلة (البروتين، الطاقة، الأملاح، والأحماض الأمينية)
         if stage == "بادي (Starter)":
             target_cp = 23.0 ; target_me = 3000 ; target_ca = 1.0 ; target_p = 0.45
-            bounds = [(0, 600), (0, 400), (0, 50), (0, 15), (0, 20), (0.5, 5), (0.5, 4)]
+            req_lys = 13.5 ; req_met = 5.0 ; req_mc = 9.0  # بالكجم للطن
+            bounds = [(0, 600), (0, 400), (0, 50), (0, 15), (0, 20), (0, 5), (0, 4)]
         elif stage == "نامي (Grower)":
             target_cp = 21.0 ; target_me = 3100 ; target_ca = 0.9 ; target_p = 0.40
-            bounds = [(0, 650), (0, 380), (0, 50), (0, 15), (0, 20), (0.5, 4), (0.5, 4)]
+            req_lys = 12.0 ; req_met = 4.5 ; req_mc = 8.2  # بالكجم للطن
+            bounds = [(0, 650), (0, 380), (0, 50), (0, 15), (0, 20), (0, 4), (0, 4)]
         else: # Finisher
             target_cp = 19.0 ; target_me = 3200 ; target_ca = 0.85 ; target_p = 0.35
-            bounds = [(0, 680), (0, 320), (0, 60), (0, 15), (0, 18), (0.5, 4), (0.5, 3.5)]
+            req_lys = 10.5 ; req_met = 4.0 ; req_mc = 7.2  # بالكجم للطن
+            bounds = [(0, 680), (0, 320), (0, 60), (0, 15), (0, 18), (0, 4), (0, 3.5)]
 
+        # 2. ترتيب المتغيرات: ذرة، صويا، زيت، حجر جيري، داي كالسيوم، ليزين، ميثيونين
         c = [price_corn/1000, price_soy/1000, price_oil/1000, price_limestone/1000, price_dcp/1000, price_lysine/1000, price_methionine/1000]
+        
+        # 3. معادلة ثبات الوزن (990 كجم ليتبقى 10 كجم للإضافات الثابتة)
         A_eq = [[1, 1, 1, 1, 1, 1, 1]]
         b_eq = [990]
         
+        # 4. مصفوفة القيود التغذوية (مضروبة في -1 لتحقيق علامة الأكبر من أو يساوي >=)
         A_ub = [
-            [-0.085, -0.48, 0, 0, 0, -0.94, -0.58], 
-            [-3350, -2230, -8800, 0, 0, -4000, -5000], 
-            [-0.0002, -0.002, 0, -0.38, -0.22, 0, 0], 
-            [-0.001, -0.002, 0, 0, -0.18, 0, 0] 
+            [-0.085, -0.48, 0, 0, 0, -0.94, -0.58],    # CP
+            [-3350, -2230, -8800, 0, 0, -4000, -5000], # ME
+            [-0.0002, -0.002, 0, -0.38, -0.22, 0, 0],  # Ca
+            [-0.001, -0.002, 0, 0, -0.18, 0, 0],       # P
+            [-0.0026, -0.0300, 0, 0, 0, -0.788, 0],    # Total Lysine (الذرة + الصويا + الصناعي)
+            [-0.0018, -0.0065, 0, 0, 0, 0, -0.990],    # Total Methionine
+            [-0.0034, -0.0130, 0, 0, 0, 0, -0.990]     # Total Methionine + Cystine
         ]
         b_ub = [
             -(target_cp / 100) * 1000,
             -target_me * 1000,
             -(target_ca / 100) * 1000,
-            -(target_p / 100) * 1000
+            -(target_p / 100) * 1000,
+            -req_lys,
+            -req_met,
+            -req_mc
         ]
         
+        # 5. تشغيل الخوارزمية
         res = linprog(c, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method='highs')
         
         if res.success:
-            st.success("تمت العملية بنجاح. تم استخراج التركيبة الأقل تكلفة.")
+            st.success("تمت العملية بنجاح. تم استخراج التركيبة الأقل تكلفة التي تلبي كافة الاحتياجات التغذوية.")
             corn_kg, soy_kg, oil_kg, lime_kg, dcp_kg, lys_kg, met_kg = res.x
             
-            # تصليح الخطأ الرياضي: إضافة 1500 جنيه تقديراً لأسعار الـ 10 كيلو إضافات ثابتة بدل الضرب الخاطئ في 1000
             total_ton_cost = res.fun + 1500
             
             st.markdown(f"<h3 style='text-align: right;'>تكلفة طن العلف النهائي: <span style='color: #4CAF50;'>{total_ton_cost:,.2f}</span> جنيه مصري</h3>", unsafe_allow_html=True)
             
             try:
-                # توليد النص العربي آلياً
                 arabic_text = num2words(int(total_ton_cost), lang='ar')
                 st.markdown(f"<p style='text-align: right; color: #888; font-size: 18px;'>(فقط {arabic_text} جنيهاً مصرياً لا غير)</p>", unsafe_allow_html=True)
             except:
@@ -315,8 +329,7 @@ elif app_mode == "تركيب العلف الاقتصادي":
             })
             st.dataframe(result_df, use_container_width=True, hide_index=True)
             
-            # تم حذف الجملة المحددة بناءً على طلبك
-            st.info("ملاحظة هندسية: تم الالتزام بالحدود القصوى (الفسيولوجية) للخامات وللأحماض الأمينية الصناعية لضمان كفاءة التحويل.")
+            st.info("ملاحظة هندسية: الخوارزمية الآن تستخدم (القيود التغذوية) بدلاً من الحدود الإجبارية، مما يجبرها على اختيار المصدر الأرخص (صناعي أو نباتي) لتحقيق مستوى الأحماض الأمينية القياسي في العلف.")
         else:
             st.error("لم يتمكن النظام من إيجاد تركيبة متوافقة مع هذه القيود والأسعار. يرجى مراجعة المدخلات.")
 
