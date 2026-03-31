@@ -53,6 +53,11 @@ custom_css = """
     .dataframe {
         font-size: 14px;
     }
+
+    /* 🔒 الجزء الجديد: إخفاء القائمة العلوية وعلامة جيت هاب تماماً لحماية الكود 🔒 */
+    #MainMenu {visibility: hidden;}
+    header {visibility: hidden;}
+    footer {visibility: hidden;}
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
